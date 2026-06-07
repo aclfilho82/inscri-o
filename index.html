@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -374,6 +375,12 @@
             .filter-group { min-width: 100%; }
         }
     </style>
+
+<style id="firebase-crm-css">
+.save-status{position:fixed;right:18px;bottom:18px;z-index:2000;background:#1e4663;color:#fff;padding:10px 16px;border-radius:999px;font-size:13px;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,.22);opacity:.95}
+.save-status.ok{background:#2c6e49}.save-status.err{background:#b33}
+</style>
+
 </head>
 <body>
 <div class="container">
@@ -1036,5 +1043,144 @@
 
     initUnitsBar();
 </script>
+<div id="saveStatus" class="save-status">Conectando ao Firebase...</div>
+
+<script id="firebase-crm-js" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script id="firebase-crm-js" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<script id="firebase-crm-js">
+(function(){
+  const firebaseConfig = {
+    apiKey: "AIzaSyCGXR_RHcfU_WZgND126lf7BSzKQ-63NNA",
+    authDomain: "inscricao-caacb.firebaseapp.com",
+    projectId: "inscricao-caacb",
+    storageBucket: "inscricao-caacb.firebasestorage.app",
+    messagingSenderId: "1079855283813",
+    appId: "1:1079855283813:web:9adc798c84959d1b6f108c",
+    measurementId: "G-HTH1X260L6"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const collectionRef = db.collection("crm_inscricoes_unidades");
+
+  let firebaseReady = false;
+  let loadingFirebase = false;
+  let saveTimer = null;
+
+  function setStatus(text, type){
+    const el = document.getElementById("saveStatus");
+    if(!el) return;
+    el.textContent = text;
+    el.className = "save-status" + (type ? " " + type : "");
+  }
+
+  function safeId(unitName){
+    return String(unitName || "sem_unidade")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+      .replace(/[^a-zA-Z0-9_-]/g,"_")
+      .slice(0,120);
+  }
+
+  async function saveUnitToFirebase(unitName){
+    if(!firebaseReady || loadingFirebase || !unitName || !unitData[unitName]) return;
+    try{
+      setStatus("Salvando...");
+      await collectionRef.doc(safeId(unitName)).set({
+        unidade: unitName,
+        dados: unitData[unitName],
+        atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge:true });
+      setStatus("Salvo na nuvem", "ok");
+    }catch(err){
+      console.error("Erro ao salvar Firebase:", err);
+      setStatus("Erro ao salvar", "err");
+    }
+  }
+
+  window.saveAllUnitsToFirebase = async function(){
+    if(!firebaseReady || loadingFirebase) return;
+    try{
+      setStatus("Salvando tudo...");
+      const batch = db.batch();
+      Object.keys(unitData || {}).forEach(unitName=>{
+        batch.set(collectionRef.doc(safeId(unitName)), {
+          unidade: unitName,
+          dados: unitData[unitName],
+          atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge:true });
+      });
+      await batch.commit();
+      setStatus("Tudo salvo na nuvem", "ok");
+    }catch(err){
+      console.error("Erro ao salvar tudo:", err);
+      setStatus("Erro ao salvar", "err");
+    }
+  };
+
+  window.scheduleFirebaseSave = function(unitName){
+    if(!firebaseReady || loadingFirebase) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(()=>saveUnitToFirebase(unitName || currentUnit), 800);
+  };
+
+  window.loadFirebaseData = async function(){
+    loadingFirebase = true;
+    try{
+      setStatus("Carregando dados...");
+      const snap = await collectionRef.get();
+
+      if(!snap.empty){
+        unitData = {};
+        snap.forEach(doc=>{
+          const d = doc.data();
+          if(d && d.unidade && d.dados){
+            unitData[d.unidade] = d.dados;
+          }
+        });
+        localStorage.setItem("leadvision_units", JSON.stringify(unitData));
+      }else{
+        const saved = localStorage.getItem("leadvision_units");
+        if(saved){
+          try{ unitData = JSON.parse(saved) || {}; }catch(e){}
+        }
+      }
+
+      firebaseReady = true;
+
+      if(currentUnit){
+        loadUnitData(currentUnit);
+      }
+
+      setStatus("Conectado ao Firebase", "ok");
+    }catch(err){
+      console.error("Erro ao carregar Firebase:", err);
+      setStatus("Erro Firebase", "err");
+    }finally{
+      loadingFirebase = false;
+    }
+  };
+
+  const oldPersist = persistCurrentUnit;
+  persistCurrentUnit = function(){
+    oldPersist();
+    window.scheduleFirebaseSave(currentUnit);
+  };
+
+  const oldLoadUnitData = loadUnitData;
+  loadUnitData = function(unitName){
+    oldLoadUnitData(unitName);
+    window.scheduleFirebaseSave(unitName);
+  };
+
+  const oldClearCurrentUnitData = clearCurrentUnitData;
+  clearCurrentUnitData = function(){
+    oldClearCurrentUnitData();
+    window.scheduleFirebaseSave(currentUnit);
+  };
+
+  setTimeout(()=>window.loadFirebaseData(), 500);
+})();
+</script>
+
 </body>
 </html>
