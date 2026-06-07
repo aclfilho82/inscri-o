@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>LeadVision · CRM Multi‑Unidades</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+        }
+        body {
+            background: #f0f2f8;
+            margin: 0;
+            padding: 28px 20px;
+        }
+        .container {
+            max-width: 1500px;
+            margin: 0 auto;
+        }
+        .units-bar {
+            background: white;
+            border-radius: 28px;
+            padding: 16px 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 6px 14px rgba(0,0,0,0.02);
+            border: 1px solid #e6edf4;
+        }
+        .units-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 12px;
+            align-items: center;
+        }
+        .unit-btn {
+            background: #eef2fa;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 40px;
+            color: #1e4663;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 0.85rem;
+        }
+        .unit-btn.active {
+            background: #1e4663;
+            color: white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .unit-btn:hover {
+            background: #2c7da0;
+            color: white;
+        }
+        .header {
+            background: white;
+            border-radius: 28px;
+            padding: 20px 28px;
+            margin-bottom: 24px;
+            border: 1px solid #e6edf4;
+        }
+        h1 {
+            font-size: 1.9rem;
+            margin: 0 0 4px 0;
+            color: #0a2b3e;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .credits {
+            font-size: 0.7rem;
+            color: #6c86a3;
+            margin-top: 6px;
+            border-top: 1px solid #e9edf2;
+            padding-top: 8px;
+            display: inline-block;
+        }
+        .sub {
+            color: #4a627a;
+            margin-bottom: 18px;
+            border-left: 4px solid #2c7da0;
+            padding-left: 16px;
+            font-size: 0.9rem;
+        }
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 18px;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+        }
+        button {
+            background: #1e4663;
+            border: none;
+            padding: 8px 22px;
+            border-radius: 40px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        button:hover {
+            background: #0f3550;
+            transform: translateY(-1px);
+        }
+        .btn-outline {
+            background: white;
+            color: #1e4663;
+            border: 1px solid #cbdde9;
+        }
+        .btn-outline:hover {
+            background: #eef3fc;
+        }
+        .btn-chart {
+            background: #2c7da0;
+        }
+        .btn-danger {
+            background: #b33;
+        }
+        .btn-danger:hover {
+            background: #8b1a1a;
+        }
+        .stats-badge {
+            background: #eef2ff;
+            border-radius: 40px;
+            padding: 6px 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #1f5068;
+        }
+        .empty-state {
+            background: white;
+            border-radius: 28px;
+            padding: 60px 30px;
+            text-align: center;
+            border: 1px dashed #cbdae9;
+            margin: 30px 0;
+        }
+        .filters-area {
+            background: white;
+            border-radius: 24px;
+            padding: 18px 24px;
+            margin-bottom: 24px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: flex-end;
+            border: 1px solid #e9edf2;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 140px;
+        }
+        .filter-group label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #2c4c6e;
+            letter-spacing: 0.4px;
+        }
+        select, input {
+            padding: 8px 14px;
+            border-radius: 40px;
+            border: 1px solid #cfdfed;
+            background: white;
+            font-size: 0.85rem;
+            outline: none;
+        }
+        select:focus, input:focus {
+            border-color: #2c7da0;
+            box-shadow: 0 0 0 2px rgba(44,125,160,0.2);
+        }
+        .table-wrapper {
+            overflow-x: auto;
+            margin-top: 20px;
+            background: white;
+            border-radius: 24px;
+            padding: 4px 0;
+            border: 1px solid #eef2f8;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+        }
+        th, td {
+            padding: 14px 12px;
+            text-align: left;
+            border-bottom: 1px solid #edf2f7;
+        }
+        th {
+            background: #fafcff;
+            font-weight: 700;
+            color: #1f4868;
+        }
+        .clickable-name {
+            color: #2c7da0;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: underline;
+            text-decoration-thickness: 1px;
+            text-underline-offset: 3px;
+        }
+        .clickable-name:hover {
+            color: #0f5b7a;
+        }
+        .contact-badge {
+            background: #eef2fa;
+            padding: 2px 10px;
+            border-radius: 40px;
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+        .chart-container {
+            background: white;
+            border-radius: 28px;
+            padding: 20px 24px;
+            margin: 30px 0 20px;
+            border: 1px solid #e2edf7;
+            display: none;
+        }
+        .chart-flex {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            justify-content: center;
+        }
+        .chart-box {
+            flex: 1;
+            min-width: 260px;
+            max-width: 420px;
+        }
+        canvas {
+            max-height: 260px;
+            width: 100%;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(3px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            visibility: hidden;
+            opacity: 0;
+            transition: 0.2s;
+        }
+        .modal-overlay.active {
+            visibility: visible;
+            opacity: 1;
+        }
+        .modal {
+            background: white;
+            max-width: 550px;
+            width: 90%;
+            border-radius: 32px;
+            box-shadow: 0 25px 45px rgba(0,0,0,0.2);
+            overflow: hidden;
+            animation: fadeUp 0.2s ease;
+        }
+        @keyframes fadeUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .modal-header {
+            background: #1e4663;
+            color: white;
+            padding: 18px 24px;
+            font-weight: 700;
+            font-size: 1.2rem;
+            display: flex;
+            justify-content: space-between;
+        }
+        .modal-header span {
+            cursor: pointer;
+            font-size: 1.5rem;
+        }
+        .modal-body {
+            padding: 24px;
+        }
+        .modal-field {
+            margin-bottom: 20px;
+        }
+        .modal-field label {
+            font-weight: 600;
+            display: block;
+            margin-bottom: 6px;
+            color: #1f3b4c;
+            font-size: 0.8rem;
+        }
+        .modal-field select, .modal-field input, .modal-field textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 20px;
+            border: 1px solid #cbdae9;
+            font-size: 0.9rem;
+        }
+        .radio-group {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            margin-top: 5px;
+        }
+        .radio-group label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: normal;
+            cursor: pointer;
+        }
+        .btn-save {
+            background: #2c6e49;
+            width: 100%;
+            margin-top: 12px;
+            justify-content: center;
+        }
+        .toast-notify {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            background: #1e4663;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 60px;
+            font-weight: 500;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 1100;
+            animation: fadeInOut 3s ease forwards;
+        }
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(20px); }
+            15% { opacity: 1; transform: translateY(0); }
+            85% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(20px); visibility: hidden; }
+        }
+        .footer-note {
+            margin-top: 35px;
+            text-align: center;
+            font-size: 0.7rem;
+            color: #6c86a3;
+        }
+        .indicator-sim {
+            color: #2c6e49;
+            font-weight: bold;
+            display: inline-block;
+            margin-right: 6px;
+            font-size: 1.2rem;
+        }
+        .indicator-nao {
+            color: #b33;
+            font-weight: bold;
+            display: inline-block;
+            margin-right: 6px;
+            font-size: 1.2rem;
+        }
+        @media (max-width: 700px) {
+            body { padding: 16px; }
+            .filter-group { min-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="units-bar">
+        <div style="font-weight: 600; margin-bottom: 8px;">🏢 Selecione a unidade:</div>
+        <div class="units-grid" id="unitsGrid"></div>
+    </div>
+
+    <div id="crmContent" style="display: none;">
+        <div class="header">
+            <h1>📋 LeadVision · CRM de Inscrições</h1>
+            <div class="credits">desenvolvido pelo Prof. Antonio Carlos - Diretor da UNINASSAU Salvador</div>
+            <div class="sub">Importe planilhas (Excel) → adiciona APENAS novos contatos baseado no CELULAR. Acompanhamentos são salvos por unidade.</div>
+            <div class="toolbar">
+                <div>
+                    <button id="uploadBtn">📂 Anexar Excel (novos leads)</button>
+                    <input type="file" id="fileInput" accept=".xlsx, .xls" style="display:none" />
+                    <button id="exportBtn" class="btn-outline">📎 Exportar dados + acompanhamentos</button>
+                    <button id="toggleChartBtn" class="btn-chart">📊 Mostrar Gráficos</button>
+                </div>
+                <div class="stats-badge" id="statsInfo">⏳ Nenhum dado carregado</div>
+            </div>
+        </div>
+
+        <div class="filters-area" id="filtersPanel">
+            <div class="filter-group"><label>🏷️ Classificação</label><select id="filterClassificacao"><option value="">Todas</option></select></div>
+            <div class="filter-group"><label>📚 Curso</label><select id="filterCurso"><option value="">Todos</option></select></div>
+            <div class="filter-group"><label>💰 Status Transação</label><select id="filterStatusPag"><option value="">Todos</option></select></div>
+            <div class="filter-group"><label>🌆 Cidade</label><select id="filterCidade"><option value="">Todas</option></select></div>
+            <div class="filter-group"><label>✅ Inscrição Ativa</label><select id="filterAtiva"><option value="">Todas</option><option value="SIM">SIM</option><option value="NÃO">NÃO</option></select></div>
+            <div class="filter-group"><label>🔍 Nome / Email</label><input type="text" id="searchText" placeholder="Pesquisar..."></div>
+            <button id="clearFiltersBtn" class="btn-outline">Limpar filtros</button>
+            <button id="clearDataBtn" class="btn-danger">🗑️ Limpar dados desta unidade</button>
+        </div>
+
+        <div id="emptyState" class="empty-state">
+            <div style="font-size: 3rem;">📂</div>
+            <h3>Nenhum lead carregado nesta unidade</h3>
+            <p>Clique em "Anexar Excel" e selecione uma planilha.<br><strong>Merge por telefone:</strong> apenas registros com celular ainda não cadastrado serão adicionados.</p>
+            <button id="uploadEmptyBtn">➕ Selecionar Excel</button>
+        </div>
+
+        <div id="dataContent" style="display: none;">
+            <div class="table-wrapper">
+                <table id="dataTable">
+                    <thead>
+                        <tr><th>Nome (clique para acompanhar)</th><th>Email</th><th>Celular</th><th>Curso</th><th>Classificação</th><th>Status Pag.</th><th>Cidade/UF</th><th>Último contato</th></tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="chartPanel" class="chart-container">
+            <h3>📈 Métricas dinâmicas</h3>
+            <div class="chart-flex">
+                <div class="chart-box"><canvas id="chartClassificacao"></canvas></div>
+                <div class="chart-box"><canvas id="chartCursosTop"></canvas></div>
+                <div class="chart-box"><canvas id="chartPagamento"></canvas></div>
+            </div>
+        </div>
+        <div class="footer-note">* Clique no nome para registrar contato. Ícone ✅ verde = vai matricular | ❌ vermelho = não vai matricular.</div>
+    </div>
+</div>
+
+<!-- Modal de senha -->
+<div id="passwordModal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <span id="modalTitle">🔐 Acesso</span>
+            <span id="closePwdModalBtn" style="cursor:pointer;">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="pwdUnitName" style="font-weight:bold; margin-bottom:16px;"></div>
+            <div class="modal-field">
+                <label id="pwdLabel">Digite a senha:</label>
+                <input type="password" id="passwordInput" maxlength="20" class="password-input" autocomplete="off">
+            </div>
+            <button id="confirmPwdBtn" class="btn-save">🔓 Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de acompanhamento -->
+<div id="contactModal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <span>📞 Acompanhamento de Lead</span>
+            <span id="closeModalBtn" style="cursor:pointer;">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="modalStudentName" style="font-weight:bold; margin-bottom:16px; background:#eef2fa; padding:8px 16px; border-radius:40px;"></div>
+            <input type="hidden" id="modalStudentIndex">
+            <div class="modal-field">
+                <label>✅ Entrou em contato?</label>
+                <div class="radio-group"><label><input type="radio" name="contatoRealizado" value="SIM"> SIM</label><label><input type="radio" name="contatoRealizado" value="NAO"> NÃO</label></div>
+            </div>
+            <div class="modal-field">
+                <label>👤 Quem realizou esse contato?</label>
+                <select id="responsavelContato"><option value="">Selecione</option><option value="Coordenação">Coordenação</option><option value="QG">QG</option><option value="Comercial">Comercial</option><option value="Assistente">Assistente</option></select>
+            </div>
+            <div class="modal-field">
+                <label>🎓 Vai realizar a matrícula?</label>
+                <div class="radio-group"><label><input type="radio" name="vaiMatricular" value="SIM"> SIM</label><label><input type="radio" name="vaiMatricular" value="NAO"> NÃO</label></div>
+            </div>
+            <div class="modal-field" id="dataMatriculaField" style="display:none;"><label>📅 Data prevista da matrícula:</label><input type="date" id="dataMatricula"></div>
+            <div class="modal-field" id="motivoNaoField" style="display:none;"><label>❌ Por que não vai realizar a matrícula?</label><textarea id="motivoNao" rows="2" placeholder="Descreva o motivo..."></textarea></div>
+            <button id="saveContactBtn" class="btn-save">💾 Salvar acompanhamento</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ---------- SENHAS (NÃO EXIBIDAS EM LUGAR NENHUM) ----------
+    const MASTER_PASSWORD = "130051";      // Senha mestra para acessar qualquer unidade
+    const ACTION_PASSWORD = "Xy9#F2";      // Senha para ações (importar, exportar, gráficos, limpar)
+    
+    const FIXED_PASSWORDS = {
+        "Petrolina": "aB4dE9",
+        "Arapiraca": "xY7zK2",
+        "Serra Talhada": "mN8pQ3",
+        "Salvador": "rT5uV1",
+        "João Pessoa": "wX6yZ0",
+        "UNIFAEL Curitiba": "cV3bN7",
+        "Juazeiro do Norte": "fG9hJ4",
+        "Vitória da Conquista": "lK2mP8",
+        "Caruaru": "qW1eR5",
+        "Barreiras": "tY6uI0",
+        "UNIFAEL Lapa": "oP4aS9",
+        "Rio de Janeiro": "dF7gH2",
+        "Sobral": "jK8lZ3",
+        "Garanhuns": "zX5cV6",
+        "UNIFAEL Porto Alegre": "bN1mQ7",
+        "UNIFAEL Florianópolis": "eR4tY8",
+        "UNI7": "uI9oP0"
+    };
+    
+    const UNITS = Object.keys(FIXED_PASSWORDS);
+
+    let currentUnit = null;
+    let unitData = {};
+    let masterData = [];
+    let filteredData = [];
+    let acompanhamentos = {};
+    let colMap = {
+        nome: "Nome da Pessoa", email: "Email da Pessoa", celular: "Celular da Pessoa",
+        cidade: "Cidade do Endereço", estado: "Estado", curso: "Curso",
+        classificacao: "Classificação", statusPag: "Transação Status", inscricaoAtiva: "Inscricao Ativa"
+    };
+    let charts = { class: null, curso: null, pag: null };
+
+    // DOM elements
+    const crmContainer = document.getElementById("crmContent");
+    const emptyStateDiv = document.getElementById("emptyState");
+    const dataContentDiv = document.getElementById("dataContent");
+    const statsSpan = document.getElementById("statsInfo");
+    const exportBtn = document.getElementById("exportBtn");
+    const toggleChartBtn = document.getElementById("toggleChartBtn");
+    const chartPanel = document.getElementById("chartPanel");
+    const clearFiltersBtn = document.getElementById("clearFiltersBtn");
+    const clearDataBtn = document.getElementById("clearDataBtn");
+    const filterClass = document.getElementById("filterClassificacao");
+    const filterCurso = document.getElementById("filterCurso");
+    const filterStatus = document.getElementById("filterStatusPag");
+    const filterCidade = document.getElementById("filterCidade");
+    const filterAtiva = document.getElementById("filterAtiva");
+    const searchText = document.getElementById("searchText");
+    const modal = document.getElementById("contactModal");
+    const closeModalBtn = document.getElementById("closeModalBtn");
+    const saveContactBtn = document.getElementById("saveContactBtn");
+    const modalStudentNameSpan = document.getElementById("modalStudentName");
+    const modalStudentIndex = document.getElementById("modalStudentIndex");
+
+    const passwordModal = document.getElementById("passwordModal");
+    const modalTitle = document.getElementById("modalTitle");
+    const pwdUnitNameSpan = document.getElementById("pwdUnitName");
+    const pwdLabel = document.getElementById("pwdLabel");
+    const passwordInput = document.getElementById("passwordInput");
+    const confirmPwdBtn = document.getElementById("confirmPwdBtn");
+    const closePwdModalBtn = document.getElementById("closePwdModalBtn");
+    let pendingCallback = null;
+
+    function showNotification(msg, isError = false) {
+        const toast = document.createElement('div');
+        toast.className = 'toast-notify';
+        toast.style.backgroundColor = isError ? '#b33' : '#1e4663';
+        toast.innerText = msg;
+        document.body.appendChild(toast);
+        setTimeout(() => { if(toast.parentNode) toast.remove(); }, 3000);
+    }
+
+    function escapeHtml(str) { if(!str) return ''; return String(str).replace(/[&<>]/g, function(m){ if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+
+    function persistCurrentUnit() {
+        if (!currentUnit) return;
+        unitData[currentUnit] = { masterData, acompanhamentos, colMap };
+        localStorage.setItem("leadvision_units", JSON.stringify(unitData));
+    }
+
+    function loadUnitData(unitName) {
+        currentUnit = unitName;
+        if (unitData[unitName]) {
+            masterData = unitData[unitName].masterData || [];
+            acompanhamentos = unitData[unitName].acompanhamentos || {};
+            colMap = unitData[unitName].colMap || {
+                nome: "Nome da Pessoa", email: "Email da Pessoa", celular: "Celular da Pessoa",
+                cidade: "Cidade do Endereço", estado: "Estado", curso: "Curso",
+                classificacao: "Classificação", statusPag: "Transação Status", inscricaoAtiva: "Inscricao Ativa"
+            };
+        } else {
+            masterData = [];
+            acompanhamentos = {};
+            colMap = {
+                nome: "Nome da Pessoa", email: "Email da Pessoa", celular: "Celular da Pessoa",
+                cidade: "Cidade do Endereço", estado: "Estado", curso: "Curso",
+                classificacao: "Classificação", statusPag: "Transação Status", inscricaoAtiva: "Inscricao Ativa"
+            };
+            unitData[unitName] = { masterData: [], acompanhamentos: {}, colMap };
+            persistCurrentUnit();
+        }
+        updateFilterOptions();
+        applyFilters();
+        if (masterData.length === 0) {
+            emptyStateDiv.style.display = "block";
+            dataContentDiv.style.display = "none";
+        } else {
+            emptyStateDiv.style.display = "none";
+            dataContentDiv.style.display = "block";
+        }
+        chartPanel.style.display = "none";
+        toggleChartBtn.textContent = "📊 Mostrar Gráficos";
+        if (charts.class) { charts.class.destroy(); charts.class = null; }
+        if (charts.curso) { charts.curso.destroy(); charts.curso = null; }
+        if (charts.pag) { charts.pag.destroy(); charts.pag = null; }
+        statsSpan.innerHTML = `📌 Exibindo ${filteredData.length} leads | Total base: ${masterData.length}`;
+        document.querySelectorAll('.unit-btn').forEach(btn => {
+            if (btn.getAttribute('data-unit') === unitName) btn.classList.add('active');
+            else btn.classList.remove('active');
+        });
+        crmContainer.style.display = "block";
+    }
+
+    function requestUnitPassword(unitName, onSuccess) {
+        const correctPassword = FIXED_PASSWORDS[unitName];
+        modalTitle.innerText = "🔐 Acesso à unidade";
+        pwdLabel.innerText = "Digite a senha da unidade:";
+        pwdUnitNameSpan.innerText = `Unidade: ${unitName}`;
+        passwordInput.value = "";
+        passwordModal.classList.add("active");
+        passwordInput.focus();
+        pendingCallback = () => {
+            const typed = passwordInput.value.trim();
+            if (typed === correctPassword || typed === MASTER_PASSWORD) {
+                passwordModal.classList.remove("active");
+                onSuccess();
+            } else {
+                showNotification("Senha incorreta!", true);
+                passwordInput.value = "";
+                passwordInput.focus();
+            }
+        };
+    }
+
+    function requestActionPassword(actionName, onSuccess) {
+        modalTitle.innerText = `⚠️ Autorizar ação: ${actionName}`;
+        pwdLabel.innerText = "Digite a senha de autorização:";
+        pwdUnitNameSpan.innerText = "Ação requer autorização especial";
+        passwordInput.value = "";
+        passwordModal.classList.add("active");
+        passwordInput.focus();
+        pendingCallback = () => {
+            const typed = passwordInput.value.trim();
+            if (typed === ACTION_PASSWORD) {
+                passwordModal.classList.remove("active");
+                onSuccess();
+            } else {
+                showNotification("Senha de autorização incorreta!", true);
+                passwordInput.value = "";
+                passwordInput.focus();
+            }
+        };
+    }
+
+    function clearCurrentUnitData() {
+        if (!currentUnit) return;
+        requestActionPassword("limpar dados", () => {
+            masterData = [];
+            acompanhamentos = {};
+            unitData[currentUnit] = { masterData: [], acompanhamentos: {}, colMap };
+            persistCurrentUnit();
+            updateFilterOptions();
+            applyFilters();
+            emptyStateDiv.style.display = "block";
+            dataContentDiv.style.display = "none";
+            chartPanel.style.display = "none";
+            toggleChartBtn.textContent = "📊 Mostrar Gráficos";
+            if (charts.class) { charts.class.destroy(); charts.class = null; }
+            if (charts.curso) { charts.curso.destroy(); charts.curso = null; }
+            if (charts.pag) { charts.pag.destroy(); charts.pag = null; }
+            statsSpan.innerHTML = `📌 Exibindo 0 leads | Total base: 0`;
+            showNotification("Todos os dados desta unidade foram removidos com sucesso.");
+        });
+    }
+
+    function getLeadKey(row, idxFallback) {
+        const email = (row[colMap.email] || "").trim().toLowerCase();
+        if(email) return email;
+        const phone = (row[colMap.celular] || "").trim();
+        if(phone) return `phone_${phone}`;
+        return `fallback_${idxFallback}`;
+    }
+
+    function updateFilterOptions() {
+        if(!masterData.length) {
+            filterClass.innerHTML = '<option value="">Todas</option>';
+            filterCurso.innerHTML = '<option value="">Todos os cursos</option>';
+            filterStatus.innerHTML = '<option value="">Todos</option>';
+            filterCidade.innerHTML = '<option value="">Todas</option>';
+            return;
+        }
+        const classSet = new Set(), cursoSet = new Set(), statusSet = new Set(), cidadeSet = new Set();
+        masterData.forEach(row => {
+            let c = row[colMap.classificacao] || ""; if(c) classSet.add(c);
+            let cr = row[colMap.curso] || ""; if(cr) cursoSet.add(cr);
+            let st = row[colMap.statusPag] || ""; if(st) statusSet.add(st);
+            let cid = row[colMap.cidade] || ""; if(cid) cidadeSet.add(cid);
+        });
+        const oldClass = filterClass.value, oldCurso = filterCurso.value, oldStatus = filterStatus.value, oldCidade = filterCidade.value;
+        filterClass.innerHTML = '<option value="">Todas</option>' + Array.from(classSet).sort().map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+        filterCurso.innerHTML = '<option value="">Todos os cursos</option>' + Array.from(cursoSet).sort().map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+        filterStatus.innerHTML = '<option value="">Todos</option>' + Array.from(statusSet).sort().map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+        filterCidade.innerHTML = '<option value="">Todas</option>' + Array.from(cidadeSet).sort().map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+        if(oldClass && classSet.has(oldClass)) filterClass.value = oldClass;
+        if(oldCurso && cursoSet.has(oldCurso)) filterCurso.value = oldCurso;
+        if(oldStatus && statusSet.has(oldStatus)) filterStatus.value = oldStatus;
+        if(oldCidade && cidadeSet.has(oldCidade)) filterCidade.value = oldCidade;
+    }
+
+    function applyFilters() {
+        if(!masterData.length) { filteredData = []; renderTable(); updateStats(); return; }
+        const classVal = filterClass.value, cursoVal = filterCurso.value, statusVal = filterStatus.value, cidadeVal = filterCidade.value, ativaVal = filterAtiva.value, searchTerm = searchText.value.toLowerCase();
+        filteredData = masterData.filter(row => {
+            let classif = row[colMap.classificacao] || "";
+            let curso = row[colMap.curso] || "";
+            let status = row[colMap.statusPag] || "";
+            let cidade = row[colMap.cidade] || "";
+            let ativa = (row[colMap.inscricaoAtiva] || "").toUpperCase();
+            let nome = (row[colMap.nome] || "").toLowerCase();
+            let email = (row[colMap.email] || "").toLowerCase();
+            if(classVal && classif !== classVal) return false;
+            if(cursoVal && curso !== cursoVal) return false;
+            if(statusVal && status !== statusVal) return false;
+            if(cidadeVal && cidade !== cidadeVal) return false;
+            if(ativaVal && ativa !== ativaVal.toUpperCase()) return false;
+            if(searchTerm && !(nome.includes(searchTerm) || email.includes(searchTerm))) return false;
+            return true;
+        });
+        renderTable();
+        updateStats();
+        if(chartPanel.style.display === "block") renderCharts();
+    }
+
+    function updateStats() {
+        statsSpan.innerHTML = `📌 Exibindo ${filteredData.length} leads | Total base: ${masterData.length}`;
+    }
+
+    // FUNÇÃO MODIFICADA: ÍCONES GRANDES E ANTES DO TEXTO
+    function getLastContactSummary(row, idx) {
+        const key = getLeadKey(row, idx);
+        const data = acompanhamentos[key];
+        if (data && data.contatoRealizado === "SIM") {
+            const responsavel = data.responsavel ? data.responsavel : "?";
+            const dataReg = data.dataRegistro ? data.dataRegistro : "data não registrada";
+            let matriculaIcon = '';
+            if (data.vaiMatricular === "SIM") {
+                matriculaIcon = '<span class="indicator-sim">✅</span>';
+                return `${matriculaIcon} ✅ ${responsavel} (${dataReg})`;
+            } else if (data.vaiMatricular === "NAO") {
+                matriculaIcon = '<span class="indicator-nao">❌</span>';
+                return `${matriculaIcon} ❌ ${responsavel} (${dataReg})`;  // X vermelho grande antes
+            } else {
+                return `✅ ${responsavel} (${dataReg})`;
+            }
+        } else if (data && data.contatoRealizado === "NAO") {
+            return `⏳ Sem contato efetivo`;
+        }
+        return "📞 Pendente";
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById("tableBody");
+        if(!filteredData.length) { tbody.innerHTML = '<tr><td colspan="8">Nenhum registro encontrado</td></td>'; return; }
+        tbody.innerHTML = filteredData.map((row, i) => {
+            const originalIdx = masterData.findIndex(r => r === row);
+            const nome = row[colMap.nome] || "Anônimo";
+            const email = row[colMap.email] || "-";
+            const celular = row[colMap.celular] || "-";
+            const curso = row[colMap.curso] || "-";
+            const classif = row[colMap.classificacao] || "-";
+            const statusPg = row[colMap.statusPag] || "-";
+            const cidade = row[colMap.cidade] || "-";
+            const estado = row[colMap.estado] || "";
+            const summary = getLastContactSummary(row, originalIdx);
+            return `
+                <tr>
+                    <td class="clickable-name" data-idx="${originalIdx}">${escapeHtml(nome)}</td>
+                    <td>${escapeHtml(email)}</td>
+                    <td>${escapeHtml(celular)}</td>
+                    <td>${escapeHtml(curso)}</td>
+                    <td><span class="contact-badge">${escapeHtml(classif)}</span></td>
+                    <td>${escapeHtml(statusPg)}</td>
+                    <td>${escapeHtml(cidade)}/${escapeHtml(estado)}</td>
+                    <td>${summary}</td>
+                </tr>
+            `;
+        }).join('');
+        document.querySelectorAll('.clickable-name').forEach(el => {
+            el.addEventListener('click', (e) => {
+                const idx = parseInt(el.getAttribute('data-idx'));
+                if(!isNaN(idx)) openModalForRow(idx);
+            });
+        });
+    }
+
+    function openModalForRow(masterIndex) {
+        if(masterIndex < 0 || masterIndex >= masterData.length) return;
+        const row = masterData[masterIndex];
+        const nome = row[colMap.nome] || "Lead";
+        modalStudentNameSpan.innerText = `📌 ${escapeHtml(nome)}`;
+        modalStudentIndex.value = masterIndex;
+        const key = getLeadKey(row, masterIndex);
+        const saved = acompanhamentos[key] || {};
+        document.querySelectorAll('input[name="contatoRealizado"]').forEach(r => r.checked = (r.value === (saved.contatoRealizado || '')));
+        document.getElementById("responsavelContato").value = saved.responsavel || "";
+        document.querySelectorAll('input[name="vaiMatricular"]').forEach(r => r.checked = (r.value === (saved.vaiMatricular || '')));
+        document.getElementById("dataMatricula").value = saved.dataMatricula || "";
+        document.getElementById("motivoNao").value = saved.motivoNao || "";
+        toggleMatriculaFields();
+        toggleMotivoField();
+        modal.classList.add("active");
+    }
+
+    function toggleMatriculaFields() {
+        const selected = document.querySelector('input[name="vaiMatricular"]:checked');
+        const dataField = document.getElementById("dataMatriculaField");
+        if(selected && selected.value === "SIM") dataField.style.display = "block";
+        else dataField.style.display = "none";
+        toggleMotivoField();
+    }
+    function toggleMotivoField() {
+        const selectedMat = document.querySelector('input[name="vaiMatricular"]:checked');
+        const motivoField = document.getElementById("motivoNaoField");
+        if(selectedMat && selectedMat.value === "NAO") motivoField.style.display = "block";
+        else motivoField.style.display = "none";
+    }
+
+    function saveContact() {
+        const masterIdx = parseInt(modalStudentIndex.value);
+        if(isNaN(masterIdx)) return;
+        const row = masterData[masterIdx];
+        const key = getLeadKey(row, masterIdx);
+        const contatoRealizado = document.querySelector('input[name="contatoRealizado"]:checked')?.value || "";
+        const responsavel = document.getElementById("responsavelContato").value;
+        const vaiMatricular = document.querySelector('input[name="vaiMatricular"]:checked')?.value || "";
+        const dataMatricula = document.getElementById("dataMatricula").value;
+        const motivoNao = document.getElementById("motivoNao").value;
+        acompanhamentos[key] = {
+            contatoRealizado, responsavel, vaiMatricular,
+            dataMatricula: vaiMatricular === "SIM" ? dataMatricula : "",
+            motivoNao: vaiMatricular === "NAO" ? motivoNao : "",
+            dataRegistro: new Date().toLocaleString()
+        };
+        persistCurrentUnit();
+        modal.classList.remove("active");
+        applyFilters();
+        showNotification("Acompanhamento salvo com sucesso!");
+    }
+
+    function renderCharts() {
+        if(!filteredData.length) { if(charts.class) charts.class.destroy(); return; }
+        const classCount = {}; filteredData.forEach(r=>{ let c=r[colMap.classificacao]||"Indefinido"; classCount[c]=(classCount[c]||0)+1; });
+        if(charts.class) charts.class.destroy();
+        charts.class = new Chart(document.getElementById('chartClassificacao'), { type:'pie', data:{ labels:Object.keys(classCount), datasets:[{ data:Object.values(classCount), backgroundColor:['#2c7da0','#61a5c2','#89c2d9','#a9d6e5'] }] } });
+        const courseCount={}; filteredData.forEach(r=>{ let cr=r[colMap.curso]||"Outros"; courseCount[cr]=(courseCount[cr]||0)+1; });
+        let sorted=Object.entries(courseCount).sort((a,b)=>b[1]-a[1]).slice(0,6);
+        if(charts.curso) charts.curso.destroy();
+        charts.curso = new Chart(document.getElementById('chartCursosTop'), { type:'bar', data:{ labels:sorted.map(v=>v[0]), datasets:[{ label:'Inscrições', data:sorted.map(v=>v[1]), backgroundColor:'#3b8db0' }] } });
+        const pagCount={}; filteredData.forEach(r=>{ let p=r[colMap.statusPag]||"Pendente"; pagCount[p]=(pagCount[p]||0)+1; });
+        if(charts.pag) charts.pag.destroy();
+        charts.pag = new Chart(document.getElementById('chartPagamento'), { type:'doughnut', data:{ labels:Object.keys(pagCount), datasets:[{ data:Object.values(pagCount), backgroundColor:['#2c6e49','#d68c45'] }] } });
+    }
+
+    function mergeNewLeads(newRows) {
+        if (!newRows.length) return 0;
+        const existingPhones = new Set();
+        masterData.forEach(row => {
+            const phone = (row[colMap.celular] || "").trim();
+            if (phone) existingPhones.add(phone);
+        });
+        let addedCount = 0;
+        for (let row of newRows) {
+            const phone = (row[colMap.celular] || "").trim();
+            let isDuplicate = false;
+            if (phone && existingPhones.has(phone)) isDuplicate = true;
+            if (!isDuplicate) {
+                masterData.push(row);
+                if (phone) existingPhones.add(phone);
+                addedCount++;
+            }
+        }
+        return addedCount;
+    }
+
+    function processExcelWithMerge(file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+                if(!json.length) { showNotification("A planilha está vazia!", true); return; }
+                
+                const keys = Object.keys(json[0]);
+                const findKey = (names) => { for(let n of names) { let found = keys.find(k=>k.toLowerCase().trim()===n.toLowerCase().trim()); if(found) return found; } return names[0]; };
+                const newColMap = {
+                    nome: findKey(["Nome da Pessoa","Nome"]),
+                    email: findKey(["Email da Pessoa","Email","E-mail"]),
+                    celular: findKey(["Celular da Pessoa","Celular","Telefone"]),
+                    cidade: findKey(["Cidade do Endereço","Cidade"]),
+                    estado: findKey(["Estado","UF"]),
+                    curso: findKey(["Curso"]),
+                    classificacao: findKey(["Classificação"]),
+                    statusPag: findKey(["Transação Status","Status Pagamento"]),
+                    inscricaoAtiva: findKey(["Inscricao Ativa","Inscrição Ativa"])
+                };
+                colMap = newColMap;
+                
+                const added = mergeNewLeads(json);
+                if(added === 0 && masterData.length > 0) {
+                    showNotification("Nenhum novo lead adicionado. Todos os telefones já existem na base.", false);
+                } else if(added > 0) {
+                    showNotification(`✅ ${added} novo(s) lead(s) adicionado(s) com sucesso! (baseado no telefone)`, false);
+                } else if(masterData.length === 0 && added === json.length) {
+                    showNotification(`Base iniciada com ${added} registros.`, false);
+                } else if(added === 0 && masterData.length === 0){
+                    showNotification("Erro: nenhum dado foi carregado. Verifique o formato da planilha.", true);
+                }
+                
+                updateFilterOptions();
+                filterClass.value = ""; filterCurso.value = ""; filterStatus.value = ""; filterCidade.value = ""; filterAtiva.value = ""; searchText.value = "";
+                applyFilters();
+                if (masterData.length > 0) {
+                    emptyStateDiv.style.display = "none";
+                    dataContentDiv.style.display = "block";
+                } else {
+                    emptyStateDiv.style.display = "block";
+                    dataContentDiv.style.display = "none";
+                }
+                persistCurrentUnit();
+                if(chartPanel.style.display === "block") renderCharts();
+            } catch(err) {
+                console.error(err);
+                showNotification("Erro ao processar o arquivo: " + err.message, true);
+            }
+        };
+        reader.onerror = () => showNotification("Erro na leitura do arquivo.", true);
+        reader.readAsArrayBuffer(file);
+    }
+
+    function exportWithFollowups() {
+        if(!filteredData.length) { alert("Sem dados para exportar"); return; }
+        const exportRows = filteredData.map(row => {
+            const idx = masterData.findIndex(r=>r===row);
+            const key = getLeadKey(row, idx);
+            const a = acompanhamentos[key] || {};
+            return {
+                "Nome": row[colMap.nome]||"",
+                "Email": row[colMap.email]||"",
+                "Celular": row[colMap.celular]||"",
+                "Curso": row[colMap.curso]||"",
+                "Classificação": row[colMap.classificacao]||"",
+                "Status Pagamento": row[colMap.statusPag]||"",
+                "Cidade": row[colMap.cidade]||"",
+                "Contato Realizado": a.contatoRealizado || "",
+                "Responsável": a.responsavel || "",
+                "Vai Matricular": a.vaiMatricular || "",
+                "Data Prevista Matrícula": a.dataMatricula || "",
+                "Motivo Não Matrícula": a.motivoNao || "",
+                "Data Registro": a.dataRegistro || ""
+            };
+        });
+        const ws = XLSX.utils.json_to_sheet(exportRows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Leads_Acompanhamento");
+        XLSX.writeFile(wb, `leads_${currentUnit.replace(/\s/g, "_")}_${new Date().toISOString().slice(0,19)}.xlsx`);
+    }
+
+    function initUnitsBar() {
+        const grid = document.getElementById("unitsGrid");
+        grid.innerHTML = "";
+        const saved = localStorage.getItem("leadvision_units");
+        if (saved) {
+            try { unitData = JSON.parse(saved); } catch(e) {}
+        }
+        UNITS.forEach(unit => {
+            const btn = document.createElement("button");
+            btn.className = "unit-btn";
+            btn.textContent = unit;
+            btn.setAttribute("data-unit", unit);
+            btn.addEventListener("click", () => {
+                requestUnitPassword(unit, () => loadUnitData(unit));
+            });
+            grid.appendChild(btn);
+        });
+        crmContainer.style.display = "none";
+    }
+
+    document.getElementById("uploadBtn").addEventListener("click", () => {
+        requestActionPassword("importar Excel", () => document.getElementById("fileInput").click());
+    });
+    document.getElementById("uploadEmptyBtn").addEventListener("click", () => {
+        requestActionPassword("importar Excel", () => document.getElementById("fileInput").click());
+    });
+    document.getElementById("fileInput").addEventListener("change", (e) => { 
+        if(e.target.files.length) processExcelWithMerge(e.target.files[0]); 
+        e.target.value = ''; 
+    });
+    exportBtn.addEventListener("click", () => {
+        requestActionPassword("exportar dados", () => exportWithFollowups());
+    });
+    toggleChartBtn.addEventListener("click", () => {
+        requestActionPassword("mostrar/ocultar gráficos", () => {
+            if(chartPanel.style.display === "none"){ 
+                chartPanel.style.display = "block"; 
+                renderCharts(); 
+            } else { 
+                chartPanel.style.display = "none"; 
+            }
+        });
+    });
+    clearFiltersBtn.addEventListener("click", () => { 
+        filterClass.value = ""; filterCurso.value = ""; filterStatus.value = ""; 
+        filterCidade.value = ""; filterAtiva.value = ""; searchText.value = ""; 
+        applyFilters(); 
+    });
+    clearDataBtn.addEventListener("click", clearCurrentUnitData);
+    
+    [filterClass, filterCurso, filterStatus, filterCidade, filterAtiva].forEach(el => el.addEventListener("change", () => applyFilters()));
+    searchText.addEventListener("keyup", () => applyFilters());
+    closeModalBtn.addEventListener("click", () => modal.classList.remove("active"));
+    modal.addEventListener("click", (e) => { if(e.target === modal) modal.classList.remove("active"); });
+    document.querySelectorAll('input[name="vaiMatricular"]').forEach(r => r.addEventListener("change", () => { toggleMatriculaFields(); toggleMotivoField(); }));
+    saveContactBtn.addEventListener("click", saveContact);
+    
+    confirmPwdBtn.addEventListener("click", () => { if (pendingCallback) pendingCallback(); });
+    closePwdModalBtn.addEventListener("click", () => { passwordModal.classList.remove("active"); pendingCallback = null; });
+    passwordInput.addEventListener("keypress", (e) => { if (e.key === "Enter") { e.preventDefault(); if (pendingCallback) pendingCallback(); } });
+    passwordModal.addEventListener("click", (e) => { if (e.target === passwordModal) { passwordModal.classList.remove("active"); pendingCallback = null; } });
+
+    initUnitsBar();
+</script>
+</body>
+</html>
