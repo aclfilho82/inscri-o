@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>LeadVision · CRM Multi‑Unidades</title>
+    <title>LeadVision · CRM Multi‑Unidades · Classificação Editável</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
     <style>
@@ -216,6 +215,18 @@
         .clickable-name:hover {
             color: #0f5b7a;
         }
+        .classification-badge {
+            background: #eef2fa;
+            padding: 5px 12px;
+            border-radius: 20px;
+            display: inline-block;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .classification-badge:hover {
+            background: #d0e0f0;
+            transform: scale(1.02);
+        }
         .contact-badge {
             background: #eef2fa;
             padding: 2px 10px;
@@ -374,6 +385,29 @@
             body { padding: 16px; }
             .filter-group { min-width: 100%; }
         }
+        .classification-option {
+            padding: 10px 15px;
+            margin: 5px 0;
+            cursor: pointer;
+            border-radius: 25px;
+            transition: all 0.2s;
+            background: #f8f9fc;
+            border: 1px solid #e0e8f0;
+        }
+        .classification-option:hover {
+            background: #e8f0fe;
+            transform: translateX(5px);
+            border-color: #2c7da0;
+        }
+        .classification-option.selected {
+            background: #2c7da0;
+            color: white;
+            border-color: #2c7da0;
+        }
+        .classification-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
     </style>
 
 <style id="firebase-crm-css">
@@ -393,7 +427,7 @@
         <div class="header">
             <h1>📋 LeadVision · CRM de Inscrições</h1>
             <div class="credits">desenvolvido pelo Prof. Antonio Carlos - Diretor da UNINASSAU Salvador</div>
-            <div class="sub">Importe planilhas (Excel) → adiciona APENAS novos contatos baseado no CELULAR. Acompanhamentos são salvos por unidade.</div>
+            <div class="sub">Importe planilhas (Excel) → adiciona APENAS novos contatos baseado no CELULAR. Clique na classificação para alterar.</div>
             <div class="toolbar">
                 <div>
                     <button id="uploadBtn">📂 Anexar Excel (novos leads)</button>
@@ -427,7 +461,7 @@
             <div class="table-wrapper">
                 <table id="dataTable">
                     <thead>
-                        <tr><th>Nome (clique para acompanhar)</th><th>Email</th><th>Celular</th><th>Curso</th><th>Classificação</th><th>Status Pag.</th><th>Cidade/UF</th><th>Último contato</th></tr>
+                        <tr><th>Nome (clique para acompanhar)</th><th>Email</th><th>Celular</th><th>Curso</th><th>Classificação ✏️</th><th>Status Pag.</th><th>Cidade/UF</th><th>Último contato</th></tr>
                     </thead>
                     <tbody id="tableBody"></tbody>
                 </table>
@@ -442,7 +476,7 @@
                 <div class="chart-box"><canvas id="chartPagamento"></canvas></div>
             </div>
         </div>
-        <div class="footer-note">* Clique no nome para registrar contato. Ícone ✅ verde = vai matricular | ❌ vermelho = não vai matricular.</div>
+        <div class="footer-note">* Clique no NOME para registrar contato. Clique na CLASSIFICAÇÃO para abrir janela e alterar o status.</div>
     </div>
 </div>
 
@@ -460,6 +494,24 @@
                 <input type="password" id="passwordInput" maxlength="20" class="password-input" autocomplete="off">
             </div>
             <button id="confirmPwdBtn" class="btn-save">🔓 Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de classificação -->
+<div id="classificationModal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <span>🏷️ Alterar Classificação do Lead</span>
+            <span id="closeClassModalBtn" style="cursor:pointer;">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="classStudentName" style="font-weight:bold; margin-bottom:16px; background:#eef2fa; padding:8px 16px; border-radius:40px;"></div>
+            <input type="hidden" id="classStudentIndex">
+            <div class="modal-field">
+                <label>📋 Selecione a nova classificação:</label>
+                <div id="classificationOptionsList" class="classification-list"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -494,31 +546,32 @@
 </div>
 
 <script>
-    // ---------- SENHAS (NÃO EXIBIDAS EM LUGAR NENHUM) ----------
-    const MASTER_PASSWORD = "130051";      // Senha mestra para acessar qualquer unidade
-    const ACTION_PASSWORD = "Xy9#F2";      // Senha para ações (importar, exportar, gráficos, limpar)
+    // ---------- SENHAS ----------
+    const MASTER_PASSWORD = "130051";
+    const ACTION_PASSWORD = "Xy9#F2";
     
     const FIXED_PASSWORDS = {
-        "Petrolina": "aB4dE9",
-        "Arapiraca": "xY7zK2",
-        "Serra Talhada": "mN8pQ3",
-        "Salvador": "rT5uV1",
-        "João Pessoa": "wX6yZ0",
-        "UNIFAEL Curitiba": "cV3bN7",
-        "Juazeiro do Norte": "fG9hJ4",
-        "Vitória da Conquista": "lK2mP8",
-        "Caruaru": "qW1eR5",
-        "Barreiras": "tY6uI0",
-        "UNIFAEL Lapa": "oP4aS9",
-        "Rio de Janeiro": "dF7gH2",
-        "Sobral": "jK8lZ3",
-        "Garanhuns": "zX5cV6",
-        "UNIFAEL Porto Alegre": "bN1mQ7",
-        "UNIFAEL Florianópolis": "eR4tY8",
-        "UNI7": "uI9oP0"
+        "Petrolina": "aB4dE9", "Arapiraca": "xY7zK2", "Serra Talhada": "mN8pQ3",
+        "Salvador": "rT5uV1", "João Pessoa": "wX6yZ0", "UNIFAEL Curitiba": "cV3bN7",
+        "Juazeiro do Norte": "fG9hJ4", "Vitória da Conquista": "lK2mP8", "Caruaru": "qW1eR5",
+        "Barreiras": "tY6uI0", "UNIFAEL Lapa": "oP4aS9", "Rio de Janeiro": "dF7gH2",
+        "Sobral": "jK8lZ3", "Garanhuns": "zX5cV6", "UNIFAEL Porto Alegre": "bN1mQ7",
+        "UNIFAEL Florianópolis": "eR4tY8", "UNI7": "uI9oP0"
     };
     
     const UNITS = Object.keys(FIXED_PASSWORDS);
+
+    // CLASSIFICAÇÕES FIXAS CONFORME A IMAGEM
+    const FIXED_CLASSIFICATIONS = [
+        "Aguardando envio da redação",
+        "Aguardando matrícula",
+        "Aguardando registro acadêmico",
+        "Documentação em análise",
+        "Documentação incompleta",
+        "Documentação inválida",
+        "Matriculado",
+        "Preinscricao"
+    ];
 
     let currentUnit = null;
     let unitData = {};
@@ -554,6 +607,13 @@
     const modalStudentNameSpan = document.getElementById("modalStudentName");
     const modalStudentIndex = document.getElementById("modalStudentIndex");
 
+    // Modal de classificação
+    const classificationModal = document.getElementById("classificationModal");
+    const closeClassModalBtn = document.getElementById("closeClassModalBtn");
+    const classStudentNameSpan = document.getElementById("classStudentName");
+    const classStudentIndex = document.getElementById("classStudentIndex");
+    const classificationOptionsList = document.getElementById("classificationOptionsList");
+
     const passwordModal = document.getElementById("passwordModal");
     const modalTitle = document.getElementById("modalTitle");
     const pwdUnitNameSpan = document.getElementById("pwdUnitName");
@@ -578,6 +638,391 @@
         if (!currentUnit) return;
         unitData[currentUnit] = { masterData, acompanhamentos, colMap };
         localStorage.setItem("leadvision_units", JSON.stringify(unitData));
+        if(window.scheduleFirebaseSave) scheduleFirebaseSave(currentUnit);
+    }
+
+    // Abrir modal de classificação
+    function openClassificationModal(masterIndex) {
+        if(masterIndex < 0 || masterIndex >= masterData.length) return;
+        const row = masterData[masterIndex];
+        const nome = row[colMap.nome] || "Lead";
+        const currentClass = row[colMap.classificacao] || "";
+        
+        classStudentNameSpan.innerText = `📌 ${escapeHtml(nome)}`;
+        classStudentIndex.value = masterIndex;
+        
+        // Carrega as opções de classificação fixas
+        let html = '';
+        FIXED_CLASSIFICATIONS.forEach(classif => {
+            const isSelected = (classif === currentClass);
+            html += `
+                <div class="classification-option ${isSelected ? 'selected' : ''}" data-value="${escapeHtml(classif)}">
+                    ${escapeHtml(classif)} ${isSelected ? '✓' : ''}
+                </div>
+            `;
+        });
+        
+        classificationOptionsList.innerHTML = html;
+        
+        // Adiciona eventos de clique nas opções
+        document.querySelectorAll('.classification-option').forEach(option => {
+            option.addEventListener('click', () => {
+                const newValue = option.getAttribute('data-value');
+                updateClassification(masterIndex, newValue);
+                classificationModal.classList.remove('active');
+                showNotification(`Classificação alterada para: ${newValue}`);
+            });
+        });
+        
+        classificationModal.classList.add('active');
+    }
+
+    // Função para atualizar a classificação
+    function updateClassification(masterIndex, newValue) {
+        if(masterIndex < 0 || masterIndex >= masterData.length) return;
+        const row = masterData[masterIndex];
+        row[colMap.classificacao] = newValue;
+        persistCurrentUnit();
+        updateFilterOptions();
+        applyFilters();
+        if(chartPanel.style.display === "block") renderCharts();
+    }
+
+    function getLeadKey(row, idxFallback) {
+        const email = (row[colMap.email] || "").trim().toLowerCase();
+        if(email) return email;
+        const phone = (row[colMap.celular] || "").trim();
+        if(phone) return `phone_${phone}`;
+        return `fallback_${idxFallback}`;
+    }
+
+    function updateFilterOptions() {
+        if(!masterData.length) {
+            filterClass.innerHTML = '<option value="">Todas</option>';
+            filterCurso.innerHTML = '<option value="">Todos os cursos</option>';
+            filterStatus.innerHTML = '<option value="">Todos</option>';
+            filterCidade.innerHTML = '<option value="">Todas</option>';
+            return;
+        }
+        
+        const classSet = new Set(FIXED_CLASSIFICATIONS);
+        const cursoSet = new Set(), statusSet = new Set(), cidadeSet = new Set();
+        masterData.forEach(row => {
+            let cr = row[colMap.curso] || ""; if(cr) cursoSet.add(cr);
+            let st = row[colMap.statusPag] || ""; if(st) statusSet.add(st);
+            let cid = row[colMap.cidade] || ""; if(cid) cidadeSet.add(cid);
+        });
+        
+        const oldClass = filterClass.value;
+        filterClass.innerHTML = '<option value="">Todas</option>' + Array.from(classSet).sort().map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+        filterCurso.innerHTML = '<option value="">Todos os cursos</option>' + Array.from(cursoSet).sort().map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+        filterStatus.innerHTML = '<option value="">Todos</option>' + Array.from(statusSet).sort().map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+        filterCidade.innerHTML = '<option value="">Todas</option>' + Array.from(cidadeSet).sort().map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+        
+        if(oldClass && classSet.has(oldClass)) filterClass.value = oldClass;
+    }
+
+    function applyFilters() {
+        if(!masterData.length) { filteredData = []; renderTable(); updateStats(); return; }
+        const classVal = filterClass.value, cursoVal = filterCurso.value, statusVal = filterStatus.value, cidadeVal = filterCidade.value, ativaVal = filterAtiva.value, searchTerm = searchText.value.toLowerCase();
+        filteredData = masterData.filter(row => {
+            let classif = row[colMap.classificacao] || "";
+            let curso = row[colMap.curso] || "";
+            let status = row[colMap.statusPag] || "";
+            let cidade = row[colMap.cidade] || "";
+            let ativa = (row[colMap.inscricaoAtiva] || "").toUpperCase();
+            let nome = (row[colMap.nome] || "").toLowerCase();
+            let email = (row[colMap.email] || "").toLowerCase();
+            if(classVal && classif !== classVal) return false;
+            if(cursoVal && curso !== cursoVal) return false;
+            if(statusVal && status !== statusVal) return false;
+            if(cidadeVal && cidade !== cidadeVal) return false;
+            if(ativaVal && ativa !== ativaVal.toUpperCase()) return false;
+            if(searchTerm && !(nome.includes(searchTerm) || email.includes(searchTerm))) return false;
+            return true;
+        });
+        renderTable();
+        updateStats();
+        if(chartPanel.style.display === "block") renderCharts();
+    }
+
+    function updateStats() {
+        statsSpan.innerHTML = `📌 Exibindo ${filteredData.length} leads | Total base: ${masterData.length}`;
+    }
+
+    function getLastContactSummary(row, idx) {
+        const key = getLeadKey(row, idx);
+        const data = acompanhamentos[key];
+        if (data && data.contatoRealizado === "SIM") {
+            const responsavel = data.responsavel ? data.responsavel : "?";
+            const dataReg = data.dataRegistro ? data.dataRegistro : "data não registrada";
+            if (data.vaiMatricular === "SIM") {
+                return `<span class="indicator-sim">✅</span> ✅ ${responsavel} (${dataReg})`;
+            } else if (data.vaiMatricular === "NAO") {
+                return `<span class="indicator-nao">❌</span> ❌ ${responsavel} (${dataReg})`;
+            } else {
+                return `✅ ${responsavel} (${dataReg})`;
+            }
+        } else if (data && data.contatoRealizado === "NAO") {
+            return `⏳ Sem contato efetivo`;
+        }
+        return "📞 Pendente";
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById("tableBody");
+        if(!filteredData.length) { 
+            tbody.innerHTML = '<tr><td colspan="8">Nenhum registro encontrado</td></tr>'; 
+            return; 
+        }
+        
+        let html = '';
+        filteredData.forEach((row, i) => {
+            const originalIdx = masterData.findIndex(r => r === row);
+            const nome = row[colMap.nome] || "Anônimo";
+            const email = row[colMap.email] || "-";
+            const celular = row[colMap.celular] || "-";
+            const curso = row[colMap.curso] || "-";
+            const classif = row[colMap.classificacao] || "-";
+            const statusPg = row[colMap.statusPag] || "-";
+            const cidade = row[colMap.cidade] || "-";
+            const estado = row[colMap.estado] || "";
+            const summary = getLastContactSummary(row, originalIdx);
+            
+            html += `
+                <tr data-row-idx="${originalIdx}">
+                    <td class="clickable-name" data-idx="${originalIdx}">${escapeHtml(nome)}</td>
+                    <td>${escapeHtml(email)}</td>
+                    <td style="font-family: monospace; font-size: 0.75rem;">${escapeHtml(celular)}</td>
+                    <td>${escapeHtml(curso)}</td>
+                    <td class="classification-cell" data-idx="${originalIdx}">
+                        <span class="classification-badge">
+                            ${escapeHtml(classif)} ✏️
+                        </span>
+                    </td>
+                    <td style="font-size: 0.75rem;">${escapeHtml(statusPg)}</td>
+                    <td>${escapeHtml(cidade)}/${escapeHtml(estado)}</td>
+                    <td>${summary}</td>
+                </tr>
+            `;
+        });
+        
+        tbody.innerHTML = html;
+        
+        // Evento para abrir modal de acompanhamento (clique no nome)
+        document.querySelectorAll('.clickable-name').forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const idx = parseInt(el.getAttribute('data-idx'));
+                if(!isNaN(idx)) openModalForRow(idx);
+            });
+        });
+        
+        // Evento para abrir modal de classificação (clique na classificação)
+        document.querySelectorAll('.classification-cell').forEach(cell => {
+            cell.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const idx = parseInt(cell.getAttribute('data-idx'));
+                if(!isNaN(idx)) {
+                    openClassificationModal(idx);
+                }
+            });
+        });
+    }
+
+    function openModalForRow(masterIndex) {
+        if(masterIndex < 0 || masterIndex >= masterData.length) return;
+        const row = masterData[masterIndex];
+        const nome = row[colMap.nome] || "Lead";
+        modalStudentNameSpan.innerText = `📌 ${escapeHtml(nome)}`;
+        modalStudentIndex.value = masterIndex;
+        const key = getLeadKey(row, masterIndex);
+        const saved = acompanhamentos[key] || {};
+        document.querySelectorAll('input[name="contatoRealizado"]').forEach(r => r.checked = (r.value === (saved.contatoRealizado || '')));
+        document.getElementById("responsavelContato").value = saved.responsavel || "";
+        document.querySelectorAll('input[name="vaiMatricular"]').forEach(r => r.checked = (r.value === (saved.vaiMatricular || '')));
+        document.getElementById("dataMatricula").value = saved.dataMatricula || "";
+        document.getElementById("motivoNao").value = saved.motivoNao || "";
+        toggleMatriculaFields();
+        toggleMotivoField();
+        modal.classList.add("active");
+    }
+
+    function toggleMatriculaFields() {
+        const selected = document.querySelector('input[name="vaiMatricular"]:checked');
+        const dataField = document.getElementById("dataMatriculaField");
+        if(selected && selected.value === "SIM") dataField.style.display = "block";
+        else dataField.style.display = "none";
+        toggleMotivoField();
+    }
+    
+    function toggleMotivoField() {
+        const selectedMat = document.querySelector('input[name="vaiMatricular"]:checked');
+        const motivoField = document.getElementById("motivoNaoField");
+        if(selectedMat && selectedMat.value === "NAO") motivoField.style.display = "block";
+        else motivoField.style.display = "none";
+    }
+
+    function saveContact() {
+        const masterIdx = parseInt(modalStudentIndex.value);
+        if(isNaN(masterIdx)) return;
+        const row = masterData[masterIdx];
+        const key = getLeadKey(row, masterIdx);
+        const contatoRealizado = document.querySelector('input[name="contatoRealizado"]:checked')?.value || "";
+        const responsavel = document.getElementById("responsavelContato").value;
+        const vaiMatricular = document.querySelector('input[name="vaiMatricular"]:checked')?.value || "";
+        const dataMatricula = document.getElementById("dataMatricula").value;
+        const motivoNao = document.getElementById("motivoNao").value;
+        acompanhamentos[key] = {
+            contatoRealizado, responsavel, vaiMatricular,
+            dataMatricula: vaiMatricular === "SIM" ? dataMatricula : "",
+            motivoNao: vaiMatricular === "NAO" ? motivoNao : "",
+            dataRegistro: new Date().toLocaleString()
+        };
+        persistCurrentUnit();
+        modal.classList.remove("active");
+        applyFilters();
+        showNotification("Acompanhamento salvo com sucesso!");
+    }
+
+    function renderCharts() {
+        if(!filteredData.length) { if(charts.class) charts.class.destroy(); return; }
+        const classCount = {}; 
+        filteredData.forEach(r=>{ 
+            let c = r[colMap.classificacao] || "Indefinido"; 
+            classCount[c] = (classCount[c] || 0) + 1; 
+        });
+        if(charts.class) charts.class.destroy();
+        charts.class = new Chart(document.getElementById('chartClassificacao'), { 
+            type: 'pie', 
+            data: { 
+                labels: Object.keys(classCount), 
+                datasets: [{ 
+                    data: Object.values(classCount), 
+                    backgroundColor: ['#2c7da0','#61a5c2','#89c2d9','#a9d6e5','#4a8c9e','#3d7a8c','#2d6a7a','#1e5a6e'] 
+                }] 
+            } 
+        });
+        
+        const courseCount={}; 
+        filteredData.forEach(r=>{ 
+            let cr = r[colMap.curso] || "Outros"; 
+            courseCount[cr] = (courseCount[cr] || 0) + 1; 
+        });
+        let sorted = Object.entries(courseCount).sort((a,b)=>b[1]-a[1]).slice(0,6);
+        if(charts.curso) charts.curso.destroy();
+        charts.curso = new Chart(document.getElementById('chartCursosTop'), { 
+            type: 'bar', 
+            data: { 
+                labels: sorted.map(v=>v[0]), 
+                datasets: [{ 
+                    label: 'Inscrições', 
+                    data: sorted.map(v=>v[1]), 
+                    backgroundColor: '#3b8db0' 
+                }] 
+            } 
+        });
+        
+        const pagCount={}; 
+        filteredData.forEach(r=>{ 
+            let p = r[colMap.statusPag] || "Pendente"; 
+            pagCount[p] = (pagCount[p] || 0) + 1; 
+        });
+        if(charts.pag) charts.pag.destroy();
+        charts.pag = new Chart(document.getElementById('chartPagamento'), { 
+            type: 'doughnut', 
+            data: { 
+                labels: Object.keys(pagCount), 
+                datasets: [{ 
+                    data: Object.values(pagCount), 
+                    backgroundColor: ['#2c6e49','#d68c45','#e67e22','#c0392b'] 
+                }] 
+            } 
+        });
+    }
+
+    function mergeNewLeads(newRows) {
+        if (!newRows.length) return 0;
+        const existingPhones = new Set();
+        masterData.forEach(row => {
+            const phone = (row[colMap.celular] || "").trim();
+            if (phone) existingPhones.add(phone);
+        });
+        let addedCount = 0;
+        for (let row of newRows) {
+            const phone = (row[colMap.celular] || "").trim();
+            let isDuplicate = false;
+            if (phone && existingPhones.has(phone)) isDuplicate = true;
+            if (!isDuplicate) {
+                masterData.push(row);
+                if (phone) existingPhones.add(phone);
+                addedCount++;
+            }
+        }
+        return addedCount;
+    }
+
+    function processExcelWithMerge(file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+                if(!json.length) { showNotification("A planilha está vazia!", true); return; }
+                
+                const keys = Object.keys(json[0]);
+                const findKey = (names) => { 
+                    for(let n of names) { 
+                        let found = keys.find(k=>k.toLowerCase().trim()===n.toLowerCase().trim()); 
+                        if(found) return found; 
+                    } 
+                    return names[0]; 
+                };
+                const newColMap = {
+                    nome: findKey(["Nome da Pessoa","Nome"]),
+                    email: findKey(["Email da Pessoa","Email","E-mail"]),
+                    celular: findKey(["Celular da Pessoa","Celular","Telefone"]),
+                    cidade: findKey(["Cidade do Endereço","Cidade"]),
+                    estado: findKey(["Estado","UF"]),
+                    curso: findKey(["Curso"]),
+                    classificacao: findKey(["Classificação"]),
+                    statusPag: findKey(["Transação Status","Status Pagamento"]),
+                    inscricaoAtiva: findKey(["Inscricao Ativa","Inscrição Ativa"])
+                };
+                colMap = newColMap;
+                
+                const added = mergeNewLeads(json);
+                if(added === 0 && masterData.length > 0) {
+                    showNotification("Nenhum novo lead adicionado. Todos os telefones já existem na base.", false);
+                } else if(added > 0) {
+                    showNotification(`✅ ${added} novo(s) lead(s) adicionado(s) com sucesso! (baseado no telefone)`, false);
+                } else if(masterData.length === 0 && added === json.length) {
+                    showNotification(`Base iniciada com ${added} registros.`, false);
+                } else if(added === 0 && masterData.length === 0){
+                    showNotification("Erro: nenhum dado foi carregado. Verifique o formato da planilha.", true);
+                }
+                
+                updateFilterOptions();
+                filterClass.value = ""; filterCurso.value = ""; filterStatus.value = ""; filterCidade.value = ""; filterAtiva.value = ""; searchText.value = "";
+                applyFilters();
+                if (masterData.length > 0) {
+                    emptyStateDiv.style.display = "none";
+                    dataContentDiv.style.display = "block";
+                } else {
+                    emptyStateDiv.style.display = "block";
+                    dataContentDiv.style.display = "none";
+                }
+                persistCurrentUnit();
+                if(chartPanel.style.display === "block") renderCharts();
+            } catch(err) {
+                console.error(err);
+                showNotification("Erro ao processar o arquivo: " + err.message, true);
+            }
+        };
+        reader.onerror = () => showNotification("Erro na leitura do arquivo.", true);
+        reader.readAsArrayBuffer(file);
     }
 
     function loadUnitData(unitName) {
@@ -621,6 +1066,34 @@
             else btn.classList.remove('active');
         });
         crmContainer.style.display = "block";
+    }
+
+    function exportWithFollowups() {
+        if(!filteredData.length) { alert("Sem dados para exportar"); return; }
+        const exportRows = filteredData.map(row => {
+            const idx = masterData.findIndex(r=>r===row);
+            const key = getLeadKey(row, idx);
+            const a = acompanhamentos[key] || {};
+            return {
+                "Nome": row[colMap.nome]||"",
+                "Email": row[colMap.email]||"",
+                "Celular": row[colMap.celular]||"",
+                "Curso": row[colMap.curso]||"",
+                "Classificação": row[colMap.classificacao]||"",
+                "Status Pagamento": row[colMap.statusPag]||"",
+                "Cidade": row[colMap.cidade]||"",
+                "Contato Realizado": a.contatoRealizado || "",
+                "Responsável": a.responsavel || "",
+                "Vai Matricular": a.vaiMatricular || "",
+                "Data Prevista Matrícula": a.dataMatricula || "",
+                "Motivo Não Matrícula": a.motivoNao || "",
+                "Data Registro": a.dataRegistro || ""
+            };
+        });
+        const ws = XLSX.utils.json_to_sheet(exportRows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Leads_Acompanhamento");
+        XLSX.writeFile(wb, `leads_${currentUnit.replace(/\s/g, "_")}_${new Date().toISOString().slice(0,19)}.xlsx`);
     }
 
     function requestUnitPassword(unitName, onSuccess) {
@@ -685,306 +1158,14 @@
         });
     }
 
-    function getLeadKey(row, idxFallback) {
-        const email = (row[colMap.email] || "").trim().toLowerCase();
-        if(email) return email;
-        const phone = (row[colMap.celular] || "").trim();
-        if(phone) return `phone_${phone}`;
-        return `fallback_${idxFallback}`;
-    }
-
-    function updateFilterOptions() {
-        if(!masterData.length) {
-            filterClass.innerHTML = '<option value="">Todas</option>';
-            filterCurso.innerHTML = '<option value="">Todos os cursos</option>';
-            filterStatus.innerHTML = '<option value="">Todos</option>';
-            filterCidade.innerHTML = '<option value="">Todas</option>';
-            return;
-        }
-        const classSet = new Set(), cursoSet = new Set(), statusSet = new Set(), cidadeSet = new Set();
-        masterData.forEach(row => {
-            let c = row[colMap.classificacao] || ""; if(c) classSet.add(c);
-            let cr = row[colMap.curso] || ""; if(cr) cursoSet.add(cr);
-            let st = row[colMap.statusPag] || ""; if(st) statusSet.add(st);
-            let cid = row[colMap.cidade] || ""; if(cid) cidadeSet.add(cid);
-        });
-        const oldClass = filterClass.value, oldCurso = filterCurso.value, oldStatus = filterStatus.value, oldCidade = filterCidade.value;
-        filterClass.innerHTML = '<option value="">Todas</option>' + Array.from(classSet).sort().map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
-        filterCurso.innerHTML = '<option value="">Todos os cursos</option>' + Array.from(cursoSet).sort().map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
-        filterStatus.innerHTML = '<option value="">Todos</option>' + Array.from(statusSet).sort().map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
-        filterCidade.innerHTML = '<option value="">Todas</option>' + Array.from(cidadeSet).sort().map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
-        if(oldClass && classSet.has(oldClass)) filterClass.value = oldClass;
-        if(oldCurso && cursoSet.has(oldCurso)) filterCurso.value = oldCurso;
-        if(oldStatus && statusSet.has(oldStatus)) filterStatus.value = oldStatus;
-        if(oldCidade && cidadeSet.has(oldCidade)) filterCidade.value = oldCidade;
-    }
-
-    function applyFilters() {
-        if(!masterData.length) { filteredData = []; renderTable(); updateStats(); return; }
-        const classVal = filterClass.value, cursoVal = filterCurso.value, statusVal = filterStatus.value, cidadeVal = filterCidade.value, ativaVal = filterAtiva.value, searchTerm = searchText.value.toLowerCase();
-        filteredData = masterData.filter(row => {
-            let classif = row[colMap.classificacao] || "";
-            let curso = row[colMap.curso] || "";
-            let status = row[colMap.statusPag] || "";
-            let cidade = row[colMap.cidade] || "";
-            let ativa = (row[colMap.inscricaoAtiva] || "").toUpperCase();
-            let nome = (row[colMap.nome] || "").toLowerCase();
-            let email = (row[colMap.email] || "").toLowerCase();
-            if(classVal && classif !== classVal) return false;
-            if(cursoVal && curso !== cursoVal) return false;
-            if(statusVal && status !== statusVal) return false;
-            if(cidadeVal && cidade !== cidadeVal) return false;
-            if(ativaVal && ativa !== ativaVal.toUpperCase()) return false;
-            if(searchTerm && !(nome.includes(searchTerm) || email.includes(searchTerm))) return false;
-            return true;
-        });
-        renderTable();
-        updateStats();
-        if(chartPanel.style.display === "block") renderCharts();
-    }
-
-    function updateStats() {
-        statsSpan.innerHTML = `📌 Exibindo ${filteredData.length} leads | Total base: ${masterData.length}`;
-    }
-
-    // FUNÇÃO MODIFICADA: ÍCONES GRANDES E ANTES DO TEXTO
-    function getLastContactSummary(row, idx) {
-        const key = getLeadKey(row, idx);
-        const data = acompanhamentos[key];
-        if (data && data.contatoRealizado === "SIM") {
-            const responsavel = data.responsavel ? data.responsavel : "?";
-            const dataReg = data.dataRegistro ? data.dataRegistro : "data não registrada";
-            let matriculaIcon = '';
-            if (data.vaiMatricular === "SIM") {
-                matriculaIcon = '<span class="indicator-sim">✅</span>';
-                return `${matriculaIcon} ✅ ${responsavel} (${dataReg})`;
-            } else if (data.vaiMatricular === "NAO") {
-                matriculaIcon = '<span class="indicator-nao">❌</span>';
-                return `${matriculaIcon} ❌ ${responsavel} (${dataReg})`;  // X vermelho grande antes
-            } else {
-                return `✅ ${responsavel} (${dataReg})`;
-            }
-        } else if (data && data.contatoRealizado === "NAO") {
-            return `⏳ Sem contato efetivo`;
-        }
-        return "📞 Pendente";
-    }
-
-    function renderTable() {
-        const tbody = document.getElementById("tableBody");
-        if(!filteredData.length) { tbody.innerHTML = '<tr><td colspan="8">Nenhum registro encontrado</td></td>'; return; }
-        tbody.innerHTML = filteredData.map((row, i) => {
-            const originalIdx = masterData.findIndex(r => r === row);
-            const nome = row[colMap.nome] || "Anônimo";
-            const email = row[colMap.email] || "-";
-            const celular = row[colMap.celular] || "-";
-            const curso = row[colMap.curso] || "-";
-            const classif = row[colMap.classificacao] || "-";
-            const statusPg = row[colMap.statusPag] || "-";
-            const cidade = row[colMap.cidade] || "-";
-            const estado = row[colMap.estado] || "";
-            const summary = getLastContactSummary(row, originalIdx);
-            return `
-                <tr>
-                    <td class="clickable-name" data-idx="${originalIdx}">${escapeHtml(nome)}</td>
-                    <td>${escapeHtml(email)}</td>
-                    <td>${escapeHtml(celular)}</td>
-                    <td>${escapeHtml(curso)}</td>
-                    <td><span class="contact-badge">${escapeHtml(classif)}</span></td>
-                    <td>${escapeHtml(statusPg)}</td>
-                    <td>${escapeHtml(cidade)}/${escapeHtml(estado)}</td>
-                    <td>${summary}</td>
-                </tr>
-            `;
-        }).join('');
-        document.querySelectorAll('.clickable-name').forEach(el => {
-            el.addEventListener('click', (e) => {
-                const idx = parseInt(el.getAttribute('data-idx'));
-                if(!isNaN(idx)) openModalForRow(idx);
-            });
-        });
-    }
-
-    function openModalForRow(masterIndex) {
-        if(masterIndex < 0 || masterIndex >= masterData.length) return;
-        const row = masterData[masterIndex];
-        const nome = row[colMap.nome] || "Lead";
-        modalStudentNameSpan.innerText = `📌 ${escapeHtml(nome)}`;
-        modalStudentIndex.value = masterIndex;
-        const key = getLeadKey(row, masterIndex);
-        const saved = acompanhamentos[key] || {};
-        document.querySelectorAll('input[name="contatoRealizado"]').forEach(r => r.checked = (r.value === (saved.contatoRealizado || '')));
-        document.getElementById("responsavelContato").value = saved.responsavel || "";
-        document.querySelectorAll('input[name="vaiMatricular"]').forEach(r => r.checked = (r.value === (saved.vaiMatricular || '')));
-        document.getElementById("dataMatricula").value = saved.dataMatricula || "";
-        document.getElementById("motivoNao").value = saved.motivoNao || "";
-        toggleMatriculaFields();
-        toggleMotivoField();
-        modal.classList.add("active");
-    }
-
-    function toggleMatriculaFields() {
-        const selected = document.querySelector('input[name="vaiMatricular"]:checked');
-        const dataField = document.getElementById("dataMatriculaField");
-        if(selected && selected.value === "SIM") dataField.style.display = "block";
-        else dataField.style.display = "none";
-        toggleMotivoField();
-    }
-    function toggleMotivoField() {
-        const selectedMat = document.querySelector('input[name="vaiMatricular"]:checked');
-        const motivoField = document.getElementById("motivoNaoField");
-        if(selectedMat && selectedMat.value === "NAO") motivoField.style.display = "block";
-        else motivoField.style.display = "none";
-    }
-
-    function saveContact() {
-        const masterIdx = parseInt(modalStudentIndex.value);
-        if(isNaN(masterIdx)) return;
-        const row = masterData[masterIdx];
-        const key = getLeadKey(row, masterIdx);
-        const contatoRealizado = document.querySelector('input[name="contatoRealizado"]:checked')?.value || "";
-        const responsavel = document.getElementById("responsavelContato").value;
-        const vaiMatricular = document.querySelector('input[name="vaiMatricular"]:checked')?.value || "";
-        const dataMatricula = document.getElementById("dataMatricula").value;
-        const motivoNao = document.getElementById("motivoNao").value;
-        acompanhamentos[key] = {
-            contatoRealizado, responsavel, vaiMatricular,
-            dataMatricula: vaiMatricular === "SIM" ? dataMatricula : "",
-            motivoNao: vaiMatricular === "NAO" ? motivoNao : "",
-            dataRegistro: new Date().toLocaleString()
-        };
-        persistCurrentUnit();
-        modal.classList.remove("active");
-        applyFilters();
-        showNotification("Acompanhamento salvo com sucesso!");
-    }
-
-    function renderCharts() {
-        if(!filteredData.length) { if(charts.class) charts.class.destroy(); return; }
-        const classCount = {}; filteredData.forEach(r=>{ let c=r[colMap.classificacao]||"Indefinido"; classCount[c]=(classCount[c]||0)+1; });
-        if(charts.class) charts.class.destroy();
-        charts.class = new Chart(document.getElementById('chartClassificacao'), { type:'pie', data:{ labels:Object.keys(classCount), datasets:[{ data:Object.values(classCount), backgroundColor:['#2c7da0','#61a5c2','#89c2d9','#a9d6e5'] }] } });
-        const courseCount={}; filteredData.forEach(r=>{ let cr=r[colMap.curso]||"Outros"; courseCount[cr]=(courseCount[cr]||0)+1; });
-        let sorted=Object.entries(courseCount).sort((a,b)=>b[1]-a[1]).slice(0,6);
-        if(charts.curso) charts.curso.destroy();
-        charts.curso = new Chart(document.getElementById('chartCursosTop'), { type:'bar', data:{ labels:sorted.map(v=>v[0]), datasets:[{ label:'Inscrições', data:sorted.map(v=>v[1]), backgroundColor:'#3b8db0' }] } });
-        const pagCount={}; filteredData.forEach(r=>{ let p=r[colMap.statusPag]||"Pendente"; pagCount[p]=(pagCount[p]||0)+1; });
-        if(charts.pag) charts.pag.destroy();
-        charts.pag = new Chart(document.getElementById('chartPagamento'), { type:'doughnut', data:{ labels:Object.keys(pagCount), datasets:[{ data:Object.values(pagCount), backgroundColor:['#2c6e49','#d68c45'] }] } });
-    }
-
-    function mergeNewLeads(newRows) {
-        if (!newRows.length) return 0;
-        const existingPhones = new Set();
-        masterData.forEach(row => {
-            const phone = (row[colMap.celular] || "").trim();
-            if (phone) existingPhones.add(phone);
-        });
-        let addedCount = 0;
-        for (let row of newRows) {
-            const phone = (row[colMap.celular] || "").trim();
-            let isDuplicate = false;
-            if (phone && existingPhones.has(phone)) isDuplicate = true;
-            if (!isDuplicate) {
-                masterData.push(row);
-                if (phone) existingPhones.add(phone);
-                addedCount++;
-            }
-        }
-        return addedCount;
-    }
-
-    function processExcelWithMerge(file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-                if(!json.length) { showNotification("A planilha está vazia!", true); return; }
-                
-                const keys = Object.keys(json[0]);
-                const findKey = (names) => { for(let n of names) { let found = keys.find(k=>k.toLowerCase().trim()===n.toLowerCase().trim()); if(found) return found; } return names[0]; };
-                const newColMap = {
-                    nome: findKey(["Nome da Pessoa","Nome"]),
-                    email: findKey(["Email da Pessoa","Email","E-mail"]),
-                    celular: findKey(["Celular da Pessoa","Celular","Telefone"]),
-                    cidade: findKey(["Cidade do Endereço","Cidade"]),
-                    estado: findKey(["Estado","UF"]),
-                    curso: findKey(["Curso"]),
-                    classificacao: findKey(["Classificação"]),
-                    statusPag: findKey(["Transação Status","Status Pagamento"]),
-                    inscricaoAtiva: findKey(["Inscricao Ativa","Inscrição Ativa"])
-                };
-                colMap = newColMap;
-                
-                const added = mergeNewLeads(json);
-                if(added === 0 && masterData.length > 0) {
-                    showNotification("Nenhum novo lead adicionado. Todos os telefones já existem na base.", false);
-                } else if(added > 0) {
-                    showNotification(`✅ ${added} novo(s) lead(s) adicionado(s) com sucesso! (baseado no telefone)`, false);
-                } else if(masterData.length === 0 && added === json.length) {
-                    showNotification(`Base iniciada com ${added} registros.`, false);
-                } else if(added === 0 && masterData.length === 0){
-                    showNotification("Erro: nenhum dado foi carregado. Verifique o formato da planilha.", true);
-                }
-                
-                updateFilterOptions();
-                filterClass.value = ""; filterCurso.value = ""; filterStatus.value = ""; filterCidade.value = ""; filterAtiva.value = ""; searchText.value = "";
-                applyFilters();
-                if (masterData.length > 0) {
-                    emptyStateDiv.style.display = "none";
-                    dataContentDiv.style.display = "block";
-                } else {
-                    emptyStateDiv.style.display = "block";
-                    dataContentDiv.style.display = "none";
-                }
-                persistCurrentUnit();
-                if(chartPanel.style.display === "block") renderCharts();
-            } catch(err) {
-                console.error(err);
-                showNotification("Erro ao processar o arquivo: " + err.message, true);
-            }
-        };
-        reader.onerror = () => showNotification("Erro na leitura do arquivo.", true);
-        reader.readAsArrayBuffer(file);
-    }
-
-    function exportWithFollowups() {
-        if(!filteredData.length) { alert("Sem dados para exportar"); return; }
-        const exportRows = filteredData.map(row => {
-            const idx = masterData.findIndex(r=>r===row);
-            const key = getLeadKey(row, idx);
-            const a = acompanhamentos[key] || {};
-            return {
-                "Nome": row[colMap.nome]||"",
-                "Email": row[colMap.email]||"",
-                "Celular": row[colMap.celular]||"",
-                "Curso": row[colMap.curso]||"",
-                "Classificação": row[colMap.classificacao]||"",
-                "Status Pagamento": row[colMap.statusPag]||"",
-                "Cidade": row[colMap.cidade]||"",
-                "Contato Realizado": a.contatoRealizado || "",
-                "Responsável": a.responsavel || "",
-                "Vai Matricular": a.vaiMatricular || "",
-                "Data Prevista Matrícula": a.dataMatricula || "",
-                "Motivo Não Matrícula": a.motivoNao || "",
-                "Data Registro": a.dataRegistro || ""
-            };
-        });
-        const ws = XLSX.utils.json_to_sheet(exportRows);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Leads_Acompanhamento");
-        XLSX.writeFile(wb, `leads_${currentUnit.replace(/\s/g, "_")}_${new Date().toISOString().slice(0,19)}.xlsx`);
-    }
-
     function initUnitsBar() {
         const grid = document.getElementById("unitsGrid");
         grid.innerHTML = "";
         const saved = localStorage.getItem("leadvision_units");
         if (saved) {
-            try { unitData = JSON.parse(saved); } catch(e) {}
+            try { 
+                unitData = JSON.parse(saved);
+            } catch(e) {}
         }
         UNITS.forEach(unit => {
             const btn = document.createElement("button");
@@ -999,6 +1180,7 @@
         crmContainer.style.display = "none";
     }
 
+    // Event listeners
     document.getElementById("uploadBtn").addEventListener("click", () => {
         requestActionPassword("importar Excel", () => document.getElementById("fileInput").click());
     });
@@ -1036,6 +1218,10 @@
     document.querySelectorAll('input[name="vaiMatricular"]').forEach(r => r.addEventListener("change", () => { toggleMatriculaFields(); toggleMotivoField(); }));
     saveContactBtn.addEventListener("click", saveContact);
     
+    // Eventos do modal de classificação
+    closeClassModalBtn.addEventListener("click", () => classificationModal.classList.remove("active"));
+    classificationModal.addEventListener("click", (e) => { if(e.target === classificationModal) classificationModal.classList.remove("active"); });
+    
     confirmPwdBtn.addEventListener("click", () => { if (pendingCallback) pendingCallback(); });
     closePwdModalBtn.addEventListener("click", () => { passwordModal.classList.remove("active"); pendingCallback = null; });
     passwordInput.addEventListener("keypress", (e) => { if (e.key === "Enter") { e.preventDefault(); if (pendingCallback) pendingCallback(); } });
@@ -1045,9 +1231,7 @@
 </script>
 <div id="saveStatus" class="save-status">Conectando ao Firebase...</div>
 
-<script id="firebase-crm-js" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
-<script id="firebase-crm-js" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-<script id="firebase-crm-js">
+<script>
 (function(){
   const firebaseConfig = {
     apiKey: "AIzaSyCGXR_RHcfU_WZgND126lf7BSzKQ-63NNA",
@@ -1096,26 +1280,6 @@
       setStatus("Erro ao salvar", "err");
     }
   }
-
-  window.saveAllUnitsToFirebase = async function(){
-    if(!firebaseReady || loadingFirebase) return;
-    try{
-      setStatus("Salvando tudo...");
-      const batch = db.batch();
-      Object.keys(unitData || {}).forEach(unitName=>{
-        batch.set(collectionRef.doc(safeId(unitName)), {
-          unidade: unitName,
-          dados: unitData[unitName],
-          atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge:true });
-      });
-      await batch.commit();
-      setStatus("Tudo salvo na nuvem", "ok");
-    }catch(err){
-      console.error("Erro ao salvar tudo:", err);
-      setStatus("Erro ao salvar", "err");
-    }
-  };
 
   window.scheduleFirebaseSave = function(unitName){
     if(!firebaseReady || loadingFirebase) return;
